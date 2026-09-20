@@ -8,9 +8,29 @@ def _normalize_name(name: str) -> str:
     return name.rstrip(".").replace("\\052", "*")
 
 
+class Route53Error(RuntimeError):
+    pass
+
+
 class Route53Provider:
     def __init__(self, region: str = None, **_ignored):
         self.client = boto3.client("route53", region_name=region)
+
+    def find_hosted_zone_id(self, domain: str) -> str:
+        """Resolve a domain to its hosted zone ID. Raises if there's zero or more than one match."""
+        dns_name = domain.rstrip(".") + "."
+        resp = self.client.list_hosted_zones_by_name(DNSName=dns_name)
+        matches = [z for z in resp.get("HostedZones", []) if z["Name"] == dns_name]
+
+        if not matches:
+            raise Route53Error(
+                f"No hosted zone found for {domain!r} - create one first, or pass --hosted-zone-id explicitly"
+            )
+        if len(matches) > 1:
+            ids = [z["Id"].removeprefix("/hostedzone/") for z in matches]
+            raise Route53Error(f"Multiple hosted zones found for {domain!r}: {ids} - pass --hosted-zone-id explicitly")
+
+        return matches[0]["Id"].removeprefix("/hostedzone/")
 
     def update_record(self, record: dict, ip: str) -> None:
         name = fqdn(record)

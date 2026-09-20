@@ -143,7 +143,9 @@ Use `manage.py` rather than hand-editing `config.yaml` and `state.json`:
 
 ```sh
 # Create a record now (using the current WAN IP) and add it to config.yaml
-.venv/bin/python3 manage.py add --domain example.com --name vpn --hosted-zone-id Z0123456789ABCDEF
+# --hosted-zone-id is auto-resolved from --domain and only needs to be
+# passed explicitly if that domain has more than one hosted zone in Route53
+.venv/bin/python3 manage.py add --domain example.com --name vpn
 
 # Delete a record from Route53 and remove it from config.yaml
 .venv/bin/python3 manage.py remove --domain example.com --name vpn
@@ -201,14 +203,17 @@ options:
 ```
 
 ```
-usage: manage.py add [-h] --domain DOMAIN --name NAME --hosted-zone-id
-                     HOSTED_ZONE_ID [--type TYPE] [--ttl TTL]
+usage: manage.py add [-h] --domain DOMAIN --name NAME
+                     [--hosted-zone-id HOSTED_ZONE_ID] [--type TYPE]
+                     [--ttl TTL]
 
 options:
   -h, --help            show this help message and exit
   --domain DOMAIN
   --name NAME           "@" for apex, "*" for wildcard, or a subdomain label
   --hosted-zone-id HOSTED_ZONE_ID
+                        Only needed if --domain has more than one hosted zone
+                        in Route53 (auto-resolved otherwise)
   --type TYPE
   --ttl TTL
 ```

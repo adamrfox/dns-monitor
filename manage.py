@@ -13,7 +13,7 @@ import sys
 
 from ruamel.yaml import YAML
 
-from dns_monitor.providers.route53 import Route53Provider
+from dns_monitor.providers.route53 import Route53Error, Route53Provider
 from dns_monitor.records import fqdn
 from dns_monitor.unifi import UnifiClient
 
@@ -47,18 +47,27 @@ def cmd_add(args) -> None:
         print(f"{args.name}.{args.domain} ({args.type}) is already in {args.config}", file=sys.stderr)
         sys.exit(1)
 
+    route53 = Route53Provider(**config.get("route53", {}))
+
+    hosted_zone_id = args.hosted_zone_id
+    if hosted_zone_id is None:
+        try:
+            hosted_zone_id = route53.find_hosted_zone_id(args.domain)
+        except Route53Error as e:
+            print(e, file=sys.stderr)
+            sys.exit(1)
+
     record = {
         "domain": args.domain,
         "name": args.name,
         "type": args.type,
         "ttl": args.ttl,
-        "hosted_zone_id": args.hosted_zone_id,
+        "hosted_zone_id": hosted_zone_id,
     }
 
     unifi = UnifiClient(**config["unifi"])
     current_ip = unifi.get_wan_ip()
 
-    route53 = Route53Provider(**config.get("route53", {}))
     route53.update_record(record, current_ip)
     print(f"Created {fqdn(record)} ({args.type}) -> {current_ip} in Route53")
 
@@ -110,7 +119,11 @@ def main():
     add_p = sub.add_parser("add", help="Create a record in Route53 with the current WAN IP and save it to config.yaml")
     add_p.add_argument("--domain", required=True)
     add_p.add_argument("--name", required=True, help='"@" for apex, "*" for wildcard, or a subdomain label')
-    add_p.add_argument("--hosted-zone-id", required=True)
+    add_p.add_argument(
+        "--hosted-zone-id",
+        default=None,
+        help="Only needed if --domain has more than one hosted zone in Route53 (auto-resolved otherwise)",
+    )
     add_p.add_argument("--type", default="A")
     add_p.add_argument("--ttl", type=int, default=300)
     add_p.set_defaults(func=cmd_add)
