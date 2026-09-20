@@ -6,6 +6,7 @@ to remember the state.json/force-resync dance).
 
     manage.py add    --domain example.com --name vpn --hosted-zone-id Z123...
     manage.py remove --domain example.com --name vpn
+    manage.py list
 """
 import argparse
 import sys
@@ -86,6 +87,21 @@ def cmd_remove(args) -> None:
     print(f"Removed from {args.config}")
 
 
+def cmd_list(args) -> None:
+    config = load_config(args.config)
+    records = config["records"]
+
+    if not records:
+        print(f"No records in {args.config}")
+        return
+
+    name_width = max(len(fqdn(r)) for r in records)
+    for r in records:
+        rtype = r.get("type", "A")
+        ttl = r.get("ttl", 300)
+        print(f"{fqdn(r):<{name_width}}  {rtype:<6}TTL={ttl:<6}{r['hosted_zone_id']}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Add or remove a dns-monitor managed DNS record.")
     parser.add_argument("--config", default="config.yaml")
@@ -104,6 +120,9 @@ def main():
     remove_p.add_argument("--name", required=True)
     remove_p.add_argument("--type", default="A")
     remove_p.set_defaults(func=cmd_remove)
+
+    list_p = sub.add_parser("list", help="List the records currently in config.yaml")
+    list_p.set_defaults(func=cmd_list)
 
     args = parser.parse_args()
     args.func(args)

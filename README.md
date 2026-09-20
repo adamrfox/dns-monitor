@@ -147,6 +147,19 @@ Use `manage.py` rather than hand-editing `config.yaml` and `state.json`:
 
 # Delete a record from Route53 and remove it from config.yaml
 .venv/bin/python3 manage.py remove --domain example.com --name vpn
+
+# List the records currently in config.yaml
+.venv/bin/python3 manage.py list
+```
+
+`list` reads straight from `config.yaml` - no network calls - and prints
+each record's FQDN, type, TTL, and hosted zone ID:
+
+```
+dollysvintage.net               A     TTL=300   Z04884601WMEZCSCAPOTM
+www.dollysvintage.net           A     TTL=300   Z04884601WMEZCSCAPOTM
+*.myprostatecancerjourney.us    A     TTL=300   Z0781860R0GKRD8TEGLC
+...
 ```
 
 `--name` accepts `@` for the apex, `*` for a wildcard, or a subdomain label.
@@ -170,18 +183,20 @@ there's nothing to remember or get out of sync.
 <summary><code>manage.py --help</code></summary>
 
 ```
-usage: manage.py [-h] [--config CONFIG] {add,remove} ...
+usage: manage.py [-h] [--config CONFIG] {add,remove,list} ...
 
 Add or remove a dns-monitor managed DNS record.
 
 positional arguments:
-  {add,remove}
-    add            Create a record in Route53 with the current WAN IP and save
-                   it to config.yaml
-    remove         Delete a record from Route53 and remove it from config.yaml
+  {add,remove,list}
+    add              Create a record in Route53 with the current WAN IP and
+                     save it to config.yaml
+    remove           Delete a record from Route53 and remove it from
+                     config.yaml
+    list             List the records currently in config.yaml
 
 options:
-  -h, --help       show this help message and exit
+  -h, --help         show this help message and exit
   --config CONFIG
 ```
 
