@@ -137,6 +137,35 @@ running entirely - crashed, timer disabled, host down - Kuma's own
 missed-heartbeat detection catches that too, without needing to hear from
 this project at all.
 
+## Adding or removing a managed record
+
+Use `manage.py` rather than hand-editing `config.yaml` and `state.json`:
+
+```sh
+# Create a record now (using the current WAN IP) and add it to config.yaml
+.venv/bin/python3 manage.py add --domain example.com --name vpn --hosted-zone-id Z0123456789ABCDEF
+
+# Delete a record from Route53 and remove it from config.yaml
+.venv/bin/python3 manage.py remove --domain example.com --name vpn
+```
+
+`--name` accepts `@` for the apex, `*` for a wildcard, or a subdomain label.
+`--type` (default `A`) and `--ttl` (default `300`) are also available on `add`.
+
+This exists because hand-editing `config.yaml` alone doesn't do anything by
+itself:
+
+- dns-monitor only acts when it thinks the WAN IP changed, so a plain config
+  edit sits inert until the IP actually changes or you force a resync
+  (`rm state.json` + trigger a run).
+- There's no way to delete a record by editing the YAML - dns-monitor only
+  ever creates/updates records it's told about, never removes them, so taking
+  a record out of `config.yaml` just stops it from being kept in sync; the
+  stale record stays in Route53 until something deletes it explicitly.
+
+`manage.py` does both the Route53 side and the config edit together, so
+there's nothing to remember or get out of sync.
+
 ## Notes
 
 - Route53 updates use `UPSERT`, so re-running with an unchanged IP is a no-op.

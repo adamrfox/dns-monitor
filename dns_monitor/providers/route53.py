@@ -3,6 +3,11 @@ import boto3
 from dns_monitor.records import fqdn
 
 
+def _normalize_name(name: str) -> str:
+    # Route53 returns wildcard labels octal-escaped, e.g. "\052.example.com."
+    return name.rstrip(".").replace("\\052", "*")
+
+
 class Route53Provider:
     def __init__(self, region: str = None, **_ignored):
         self.client = boto3.client("route53", region_name=region)
@@ -26,3 +31,34 @@ class Route53Provider:
                 ],
             },
         )
+
+    def get_record(self, record: dict) -> dict | None:
+        """Look up the live ResourceRecordSet for `record`, or None if it doesn't exist."""
+        name = fqdn(record)
+        rtype = record.get("type", "A")
+
+        resp = self.client.list_resource_record_sets(
+            HostedZoneId=record["hosted_zone_id"],
+            StartRecordName=name,
+            StartRecordType=rtype,
+            MaxItems="1",
+        )
+        for rr in resp.get("ResourceRecordSets", []):
+            if _normalize_name(rr["Name"]) == name and rr["Type"] == rtype:
+                return rr
+        return None
+
+    def delete_record(self, record: dict) -> bool:
+        """Delete `record` from Route53 if it exists. Returns False if it wasn't found."""
+        existing = self.get_record(record)
+        if existing is None:
+            return False
+
+        self.client.change_resource_record_sets(
+            HostedZoneId=record["hosted_zone_id"],
+            ChangeBatch={
+                "Comment": "dns-monitor: record removed",
+                "Changes": [{"Action": "DELETE", "ResourceRecordSet": existing}],
+            },
+        )
+        return True
