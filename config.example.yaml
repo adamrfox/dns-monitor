@@ -1,0 +1,38 @@
+# Copy this file to config.yaml and fill in real values.
+# config.yaml is gitignored so credentials never get committed.
+
+unifi:
+  controller_url: "https://192.168.1.1"   # UniFi OS console (UDM-class device); no :8443
+  site: "default"                          # internalReference from GET /proxy/network/integration/v1/sites
+  verify_ssl: false                        # self-signed cert; or set to a CA bundle path to verify properly
+  auth:
+    method: "api_key"                      # only supported method - password login hits 2FA with no way to satisfy it
+    api_key: "your-api-key"                # Settings > Control Plane > Integrations > Create API Key
+
+state_file: "state.json"
+
+route53:
+  region: "us-east-1"
+  # AWS credentials come from the standard chain: env vars, ~/.aws/credentials,
+  # or an IAM role. Use an IAM identity scoped to route53:ChangeResourceRecordSets
+  # (+ ListResourceRecordSets/GetChange) on only the hosted zones listed below.
+
+# Optional. If set, dns-monitor pushes a heartbeat to an Uptime Kuma "Push"
+# monitor on every run - "up" on success (including "unchanged"), "down" on
+# any failure. Leave the whole section out to disable.
+uptime_kuma:
+  push_url: "http://kuma.example.local:3001/api/push/XXXXXXXXXX"
+
+# Only records listed here are ever touched.
+records:
+  - domain: "example.com"
+    name: "@"                  # "@" = apex/root record, otherwise a subdomain label like "vpn"
+    type: "A"
+    ttl: 60
+    hosted_zone_id: "Z0123456789ABCDEF"
+
+  - domain: "example.net"
+    name: "home"
+    type: "A"
+    ttl: 60
+    hosted_zone_id: "Z0123456789ABCDEG"

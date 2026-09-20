@@ -1,0 +1,9 @@
+[Unit]
+Description=dns-monitor: sync DNS A records to Unifi WAN IP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/midway/dns-monitor
+ExecStart=/home/midway/dns-monitor/.venv/bin/python3 -m dns_monitor.main --config /home/midway/dns-monitor/config.yaml
