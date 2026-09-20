@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!./.venv/bin/python3
 """
 Add or remove a dns-monitor managed DNS record, applying the change to
 Route53 immediately instead of waiting for the next WAN IP change (or having
