@@ -166,6 +166,50 @@ itself:
 `manage.py` does both the Route53 side and the config edit together, so
 there's nothing to remember or get out of sync.
 
+<details>
+<summary><code>manage.py --help</code></summary>
+
+```
+usage: manage.py [-h] [--config CONFIG] {add,remove} ...
+
+Add or remove a dns-monitor managed DNS record.
+
+positional arguments:
+  {add,remove}
+    add            Create a record in Route53 with the current WAN IP and save
+                   it to config.yaml
+    remove         Delete a record from Route53 and remove it from config.yaml
+
+options:
+  -h, --help       show this help message and exit
+  --config CONFIG
+```
+
+```
+usage: manage.py add [-h] --domain DOMAIN --name NAME --hosted-zone-id
+                     HOSTED_ZONE_ID [--type TYPE] [--ttl TTL]
+
+options:
+  -h, --help            show this help message and exit
+  --domain DOMAIN
+  --name NAME           "@" for apex, "*" for wildcard, or a subdomain label
+  --hosted-zone-id HOSTED_ZONE_ID
+  --type TYPE
+  --ttl TTL
+```
+
+```
+usage: manage.py remove [-h] --domain DOMAIN --name NAME [--type TYPE]
+
+options:
+  -h, --help       show this help message and exit
+  --domain DOMAIN
+  --name NAME
+  --type TYPE
+```
+
+</details>
+
 ## Notes
 
 - Route53 updates use `UPSERT`, so re-running with an unchanged IP is a no-op.
