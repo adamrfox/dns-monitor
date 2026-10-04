@@ -7,6 +7,7 @@ to remember the state.json/force-resync dance).
     manage.py add    --domain example.com --name vpn --hosted-zone-id Z123...
     manage.py remove --domain example.com --name vpn
     manage.py list
+    manage.py scan
 """
 import argparse
 import sys
@@ -14,7 +15,7 @@ import sys
 from ruamel.yaml import YAML
 
 from dns_monitor.providers.route53 import Route53Error, Route53Provider
-from dns_monitor.records import fqdn
+from dns_monitor.records import fqdn, relative_name
 from dns_monitor.unifi import UnifiClient
 
 yaml = YAML()
@@ -111,6 +112,37 @@ def cmd_list(args) -> None:
         print(f"{fqdn(r):<{name_width}}  {rtype:<6}TTL={ttl:<6}{r['hosted_zone_id']}")
 
 
+def cmd_scan(args) -> None:
+    config = load_config(args.config)
+    tracked = {(r["domain"], r["name"], r.get("type", "A")) for r in config["records"]}
+
+    unifi = UnifiClient(**config["unifi"])
+    current_ip = unifi.get_wan_ip()
+    print(f"Current WAN IP: {current_ip}")
+
+    route53 = Route53Provider(**config.get("route53", {}))
+    matches = route53.find_a_records_by_value(current_ip)
+
+    untracked = []
+    for m in matches:
+        try:
+            name = relative_name(m["name"], m["zone_domain"])
+        except ValueError:
+            continue
+        if (m["zone_domain"], name, "A") not in tracked:
+            untracked.append((m["zone_domain"], name, m["zone_id"], m["ttl"]))
+
+    if not untracked:
+        print(f"No untracked A records found pointing at {current_ip}")
+        return
+
+    print(f"\nFound {len(untracked)} A record(s) pointing at {current_ip} not in {args.config}:\n")
+    for domain, name, zone_id, ttl in untracked:
+        shown_fqdn = domain if name == "@" else f"{name}.{domain}"
+        print(f"  {shown_fqdn}  (TTL={ttl}, zone={zone_id})")
+        print(f"    manage.py add --domain {domain} --name {name} --hosted-zone-id {zone_id}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Add or remove a dns-monitor managed DNS record.")
     parser.add_argument("--config", default="config.yaml")
@@ -136,6 +168,11 @@ def main():
 
     list_p = sub.add_parser("list", help="List the records currently in config.yaml")
     list_p.set_defaults(func=cmd_list)
+
+    scan_p = sub.add_parser(
+        "scan", help="Scan all Route53 hosted zones for A records pointing at the current WAN IP not in config.yaml"
+    )
+    scan_p.set_defaults(func=cmd_scan)
 
     args = parser.parse_args()
     args.func(args)

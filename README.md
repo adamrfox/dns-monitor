@@ -152,6 +152,11 @@ Use `manage.py` rather than hand-editing `config.yaml` and `state.json`:
 
 # List the records currently in config.yaml
 .venv/bin/python3 manage.py list
+
+# Scan every Route53 hosted zone for A records pointing at the current WAN IP
+# that aren't in config.yaml - catches drift, like a whole domain nobody
+# ever told dns-monitor about
+.venv/bin/python3 manage.py scan
 ```
 
 `list` reads straight from `config.yaml` - no network calls - and prints
@@ -181,24 +186,35 @@ itself:
 `manage.py` does both the Route53 side and the config edit together, so
 there's nothing to remember or get out of sync.
 
+`scan` walks every hosted zone in the Route53 account (not just ones already
+in `config.yaml`) looking for A records whose value matches the current WAN
+IP, and prints a ready-to-run `manage.py add` command for each one missing
+from the config. It's a drift check: things like a whole domain that was
+never added in the first place, or a record created by hand and forgotten,
+show up here. It needs `route53:ListHostedZonesByName` and
+`route53:ListResourceRecordSets` - the same permissions `add`/`remove`
+already use - rather than the broader `route53:ListHostedZones`.
+
 <details>
 <summary><code>manage.py --help</code></summary>
 
 ```
-usage: manage.py [-h] [--config CONFIG] {add,remove,list} ...
+usage: manage.py [-h] [--config CONFIG] {add,remove,list,scan} ...
 
 Add or remove a dns-monitor managed DNS record.
 
 positional arguments:
-  {add,remove,list}
-    add              Create a record in Route53 with the current WAN IP and
-                     save it to config.yaml
-    remove           Delete a record from Route53 and remove it from
-                     config.yaml
-    list             List the records currently in config.yaml
+  {add,remove,list,scan}
+    add                 Create a record in Route53 with the current WAN IP and
+                        save it to config.yaml
+    remove              Delete a record from Route53 and remove it from
+                        config.yaml
+    list                List the records currently in config.yaml
+    scan                Scan all Route53 hosted zones for A records pointing
+                        at the current WAN IP not in config.yaml
 
 options:
-  -h, --help         show this help message and exit
+  -h, --help            show this help message and exit
   --config CONFIG
 ```
 
